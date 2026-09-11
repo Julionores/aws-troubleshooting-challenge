@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installe cfn-lint
+        run: pip install cfn-lint
+      - name: Valide le template cassé (à but pédagogique -- doit rester valide syntaxiquement)
+        run: cfn-lint cloudformation/template-broken.yaml
+      - name: Valide le template corrigé
+        run: cfn-lint cloudformation/template-fixed.yaml

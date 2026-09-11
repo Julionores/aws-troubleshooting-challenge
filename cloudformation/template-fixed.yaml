@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Version corrigée du défi de diagnostic AWS -- voir docs/diagnostic.md pour la
+  démarche complète et cloudformation/template-broken.yaml pour la version cassée
+  d'origine. Trois corrections apportées : règles d'entrée sur les deux security
+  groups, et chemin de health check corrigé.
+
+Parameters:
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: AMI Amazon Linux 2023 la plus récente (résolue via SSM Parameter Store)
+
+Resources:
+  ChallengeVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.5.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: ChallengeVPC
+
+  ChallengePublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.5.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref ChallengeVPC
+      Tags:
+        - Key: Name
+          Value: ChallengePublicSubnetA
+
+  ChallengePublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.5.1.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref ChallengeVPC
+      Tags:
+        - Key: Name
+          Value: ChallengePublicSubnetB
+
+  ChallengePrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.5.2.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      VpcId: !Ref ChallengeVPC
+      Tags:
+        - Key: Name
+          Value: ChallengePrivateSubnetA
+
+  ChallengePrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.5.3.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      VpcId: !Ref ChallengeVPC
+      Tags:
+        - Key: Name
+          Value: ChallengePrivateSubnetB
+
+  ChallengeIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ChallengeIGW
+
+  ChallengeIGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ChallengeVPC
+      InternetGatewayId: !Ref ChallengeIGW
+
+  ChallengeNetworkACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref ChallengeVPC
+      Tags:
+        - Key: Name
+          Value: ChallengeNetworkACL
+
+  ChallengeNACLEntryEgress:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Egress: true
+      Protocol: '-1'
+      RuleAction: allow
+      RuleNumber: 100
+      NetworkAclId: !Ref ChallengeNetworkACL
+
+  ChallengeNACLEntryIngress:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Egress: false
+      Protocol: '-1'
+      RuleAction: allow
+      RuleNumber: 100
+      NetworkAclId: !Ref ChallengeNetworkACL
+
+  SubnetAclAssociationPublicA:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref ChallengeNetworkACL
+      SubnetId: !Ref ChallengePublicSubnetA
+
+  SubnetAclAssociationPublicB:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref ChallengeNetworkACL
+      SubnetId: !Ref ChallengePublicSubnetB
+
+  SubnetAclAssociationPrivateA:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref ChallengeNetworkACL
+      SubnetId: !Ref ChallengePrivateSubnetA
+
+  SubnetAclAssociationPrivateB:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref ChallengeNetworkACL
+      SubnetId: !Ref ChallengePrivateSubnetB
+
+  ChallengeRoutePublic:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ChallengeVPC
+      Tags:
+        - Key: Name
+          Value: ChallengeRoutePublic
+
+  ChallengeRoutePrivate:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ChallengeVPC
+      Tags:
+        - Key: Name
+          Value: ChallengeRoutePrivate
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: ChallengeIGWAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref ChallengeRoutePublic
+      GatewayId: !Ref ChallengeIGW
+
+  SubnetRoutePublicA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref ChallengeRoutePublic
+      SubnetId: !Ref ChallengePublicSubnetA
+
+  SubnetRoutePublicB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref ChallengeRoutePublic
+      SubnetId: !Ref ChallengePublicSubnetB
+
+  SubnetRoutePrivateA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref ChallengeRoutePrivate
+      SubnetId: !Ref ChallengePrivateSubnetA
+
+  SubnetRoutePrivateB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref ChallengeRoutePrivate
+      SubnetId: !Ref ChallengePrivateSubnetB
+
+  # ------------------------------------------------------------------------
+  # CORRECTION #1 : autorise le trafic HTTP entrant depuis Internet vers l'ALB.
+  # ------------------------------------------------------------------------
+  ChallengeSGELB:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ELB security group
+      VpcId: !Ref ChallengeVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Trafic HTTP public
+      Tags:
+        - Key: Name
+          Value: ChallengeSGELB
+
+  # ------------------------------------------------------------------------
+  # CORRECTION #2 : autorise le trafic HTTP entrant, mais UNIQUEMENT depuis le
+  # security group de l'ALB (pas depuis Internet directement) -- l'instance
+  # applicative ne doit être joignable qu'au travers du load balancer.
+  # ------------------------------------------------------------------------
+  ChallengeSGapp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App server security group
+      VpcId: !Ref ChallengeVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ChallengeSGELB
+          Description: Trafic HTTP en provenance du load balancer uniquement
+      Tags:
+        - Key: Name
+          Value: ChallengeSGapp
+
+  ChallengeInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: t2.micro
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<html><body><h1>Le serveur applicatif repond correctement.</h1></body></html>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: ChallengeInstance1
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          DeviceIndex: 0
+          SubnetId: !Ref ChallengePublicSubnetA
+          GroupSet: [!Ref ChallengeSGapp]
+
+  ChallengeElb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: ChallengeElb
+      Scheme: internet-facing
+      Subnets:
+        - !Ref ChallengePublicSubnetA
+        - !Ref ChallengePublicSubnetB
+      SecurityGroups: [!Ref ChallengeSGELB]
+      Tags:
+        - Key: Name
+          Value: ChallengeElb
+
+  ChallengeHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ChallengeElb
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Order: 1
+          TargetGroupArn: !Ref ChallengeTargetGroup
+          Type: forward
+
+  # ------------------------------------------------------------------------
+  # CORRECTION #3 : le chemin de health check correspond maintenant à une page
+  # réellement servie par l'instance (/index.html, servi à la racine "/").
+  # ------------------------------------------------------------------------
+  ChallengeTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: ChallengeTargetGroup
+      VpcId: !Ref ChallengeVPC
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckEnabled: true
+      HealthCheckProtocol: HTTP
+      HealthCheckPort: traffic-port
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 15
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: '200'
+      Targets:
+        - Id: !Ref ChallengeInstance1
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: 'false'
+        - Key: load_balancing.algorithm.type
+          Value: round_robin
+
+Outputs:
+  LoadBalancerDNSName:
+    Description: DNS name du load balancer -- fonctionne maintenant
+    Value: !GetAtt ChallengeElb.DNSName
