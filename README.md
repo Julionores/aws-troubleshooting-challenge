@@ -21,9 +21,10 @@ chaque cause racine -- comme un vrai incident de production.
 > [`iso27001-isms-toolkit`](https://github.com/Julionores/iso27001-isms-toolkit).
 > Côté Machine Learning, voir aussi [`gradientforge`](https://github.com/Julionores/gradientforge),
 > [`radar-risque-impaye`](https://github.com/Julionores/radar-risque-impaye),
-> [`collecte-agricole-planner`](https://github.com/Julionores/collecte-agricole-planner) et
-> [`ticket-tide`](https://github.com/Julionores/ticket-tide), une prévision de série
-> temporelle (famille ARMA).
+> [`collecte-agricole-planner`](https://github.com/Julionores/collecte-agricole-planner),
+> [`ticket-tide`](https://github.com/Julionores/ticket-tide) et
+> [`inspectline`](https://github.com/Julionores/inspectline), un détecteur d'objets
+> (Faster R-CNN) pour le contrôle qualité industriel.
 
 ## Pourquoi ce format
 
