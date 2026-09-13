@@ -17,8 +17,9 @@ chaque cause racine -- comme un vrai incident de production.
 > Côté DevSecOps/Full Stack, voir aussi
 > [`devsecops-pipeline-reference`](https://github.com/Julionores/devsecops-pipeline-reference),
 > [`securebank-api`](https://github.com/Julionores/securebank-api),
-> [`postgresql-ha-repmgr`](https://github.com/Julionores/postgresql-ha-repmgr) et
-> [`iso27001-isms-toolkit`](https://github.com/Julionores/iso27001-isms-toolkit).
+> [`postgresql-ha-repmgr`](https://github.com/Julionores/postgresql-ha-repmgr),
+> [`iso27001-isms-toolkit`](https://github.com/Julionores/iso27001-isms-toolkit) et
+> [`homelab-attaque-detection`](https://github.com/Julionores/homelab-attaque-detection).
 > Côté Machine Learning, voir aussi [`gradientforge`](https://github.com/Julionores/gradientforge),
 > [`radar-risque-impaye`](https://github.com/Julionores/radar-risque-impaye),
 > [`collecte-agricole-planner`](https://github.com/Julionores/collecte-agricole-planner),
